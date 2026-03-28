@@ -1,28 +1,70 @@
-# AgentLink WeChat SDK 设计文档
+﻿# AgentLink WeChat SDK 设计文档
 
-> 基于 [微信 iLink Bot API 协议调研文档](./wechat-ilink-protocol.md) 编写
+> 基于 [微信 iLink / OpenClaw WeChat Channel 协议调研文档](./wechat-ilink-protocol.md) 编写
 > 日期：2026-03-28
 
 ---
 
 ## 1. 项目定位
 
-AgentLink WeChat 是一个面向微信 iLink Bot 场景的 TypeScript SDK。
+AgentLink WeChat 是一个面向微信 iLink Bot / OpenClaw WeChat Channel 场景的独立 TypeScript SDK。
 
-目标是把协议层细节封装在 SDK 内，对上提供稳定、事件驱动、适合 AI Agent 接入的开发接口，让开发者专注在业务逻辑、消息处理和 Agent 编排，而不是 HTTP 细节与协议字段管理。
+它不是腾讯官方 OpenClaw 微信插件仓库，而是一个围绕公开协议语义构建的开发者友好型代码库，目标是：
+
+- 提供更直接的 TypeScript SDK 使用体验
+- 提供可阅读、可调试、可修改的源码结构
+- 提供独立于 OpenClaw 宿主的示例与测试
+- 方便构建机器人、自动化助手和 AI Agent 集成
 
 设计原则：
-- 协议细节收敛在内部实现
-- 对外 API 简洁、稳定、类型明确
-- 单包项目结构，降低维护复杂度
-- 示例以“可学习、可联调、可复用”为目标
-- 运行时仅依赖 Node.js 内置能力
+
+- 协议术语尽量与官方插件保持一致
+- SDK 对外 API 尽量简洁、稳定、类型清晰
+- 仓库结构服务于独立开发和学习，不强依赖 OpenClaw 宿主
+- 示例代码优先强调“可学习、可联调、可复用”
 
 ---
 
-## 2. 目标体验
+## 2. 与官方插件的关系
 
-开发者能够用很少的代码完成扫码登录、消息监听与回复：
+### 2.1 官方插件负责什么
+
+腾讯官方公开发布的 `@tencent-weixin/openclaw-weixin` 负责：
+
+- OpenClaw 插件打包与安装
+- Channel 在 OpenClaw 宿主中的注册
+- gateway 生命周期集成
+- 宿主配置、宿主状态目录和插件运行时约束
+
+### 2.2 本仓库负责什么
+
+本仓库负责：
+
+- 封装微信 iLink / OpenClaw Channel 协议细节
+- 提供独立的 TypeScript SDK 抽象
+- 提供 examples、tests 和设计文档
+- 让开发者不必依赖 OpenClaw 宿主也能直接做联调和验证
+
+### 2.3 当前对齐策略
+
+当前设计采用“协议语义对齐、工程形态独立”的策略：
+
+- 对齐：接口名、字段名、消息状态、媒体类型、typing ticket、多账号上下文语义
+- 不强求对齐：插件入口形式、目录结构、宿主配置、默认状态目录
+
+---
+
+## 3. 目标体验
+
+开发者应能用少量代码完成：
+
+- 扫码登录
+- 启动长轮询
+- 接收消息
+- 回复文本 / 图片 / 文件
+- 管理本地多账号
+
+最小体验：
 
 ```ts
 import { AgentLinkWechat } from '@agentlink/wechat';
@@ -39,14 +81,16 @@ bot.on('message', async (message) => {
 ```
 
 在此基础上，SDK 还支持：
-- `replyImage()` / `replyFile()` 发送媒体
-- `createReplyStream()` 进行流式回复
-- `downloadMedia()` 下载入站媒体
-- `listAccounts()` 管理本地已保存账号
+
+- `replyImage()` / `replyFile()`
+- `createReplyStream()`
+- `downloadMedia()`
+- `listAccounts()`
+- 主动出站消息发送
 
 ---
 
-## 3. 仓库结构
+## 4. 仓库结构
 
 ```text
 agentlink-wechat/
@@ -76,18 +120,20 @@ agentlink-wechat/
 ```
 
 说明：
+
 - `src/` 存放 SDK 源码
 - `test/` 存放单元测试
-- `examples/` 提供最小联调示例与 AI Agent 示例
+- `examples/` 提供最小联调与 AI Agent 示例
 - `docs/` 提供协议说明与设计说明
 
 ---
 
-## 4. 核心对象
+## 5. 核心对象
 
-### 4.1 `AgentLinkWechat`
+### 5.1 `AgentLinkWechat`
 
 主入口类，负责：
+
 - 登录与会话恢复
 - 长轮询消息接收
 - 事件分发
@@ -95,6 +141,7 @@ agentlink-wechat/
 - 多账号管理
 
 核心方法：
+
 - `login()`
 - `waitForLogin()`
 - `start()`
@@ -106,6 +153,7 @@ agentlink-wechat/
 - `listAccounts()`
 
 核心事件：
+
 - `qrcode`
 - `qrcode:scanned`
 - `login`
@@ -113,153 +161,183 @@ agentlink-wechat/
 - `message`
 - `error`
 
-### 4.2 `Message`
+### 5.2 `Message`
 
-入站消息的标准化对象，负责：
-- 提供统一的文本、发送者、时间等字段
+入站消息对象，负责：
+
+- 暴露统一字段，如文本、发送者、时间、消息项等
 - 封装回复能力
 - 封装媒体下载能力
 
 核心方法：
+
 - `reply(text)`
 - `replyImage(filePath)`
 - `replyFile(filePath)`
 - `createReplyStream()`
 - `downloadMedia(destination)`
 
-### 4.3 `ReplyStream`
+### 5.3 `ReplyStream`
 
-用于流式回复的辅助对象，负责：
-- 管理流式回复状态
-- 串行发送分段更新
-- 在结束时发送最终消息状态
+用于流式回复，负责：
 
-说明：
-- SDK 提供该能力
-- 示例项目默认仍以最终回复模式为主，保持简单稳定
+- 管理 `GENERATING` / `FINISH` 状态
+- 复用同一个 `client_id`
+- 串行发送分块更新
+- 与 typing 指示器协同
 
 ---
 
-## 5. 模块划分
+## 6. 模块划分
 
-### 5.1 `auth/`
+### 6.1 `auth/`
 
 负责扫码登录流程：
+
 - 获取二维码
 - 轮询扫码状态
-- 处理重定向
+- 处理 IDC 重定向
 - 产出登录凭证
 
-### 5.2 `http/`
+### 6.2 `http/`
 
 负责协议请求的统一封装：
+
 - 公共 headers
 - 请求体基础字段
 - 超时控制
-- 错误归类
+- 错误分类
 
-### 5.3 `polling/`
+### 6.3 `polling/`
 
 负责 `getupdates` 长轮询：
+
 - 拉取消息
 - 维护游标
 - 区分正常超时与真实网络错误
-- 触发重连或重新登录流程
+- 会话过期时触发重新登录
+- 读取服务端返回的 `longpolling_timeout_ms`
 
-### 5.4 `messaging/`
+### 6.4 `messaging/`
 
 负责消息相关能力：
+
 - 入站消息解析
 - 出站 payload 构建
 - `context_token` 管理
+- slash command 处理
 - typing 指示器
 - 流式回复
 
-### 5.5 `media/`
+### 6.5 `media/`
 
 负责媒体能力：
+
 - AES-128-ECB 加解密
 - 上传前预处理
 - 下载后解密与保存
-- 图片、文件消息构建
+- 图片、视频、文件消息组包
 
-### 5.6 `storage/`
+说明：
+
+- 当前实现已区分 `IMAGE` / `VIDEO` / `FILE` 三种出站消息
+- 不再把视频简单降级成文件消息
+
+### 6.6 `storage/`
 
 负责本地状态持久化：
+
 - 登录凭证
-- 轮询游标
+- 长轮询游标
 - `context_token`
 - 多账号状态
 - 白名单相关数据
 
-### 5.7 `utils/`
+### 6.7 `utils/`
 
 负责通用工具：
+
 - 路径解析
 - 日志
 - Markdown 清洗
 - MIME 推断
-- 队列与并发控制
+- 并发队列与 ID 生成
 
 ---
 
-## 6. 持久化设计
+## 7. 持久化设计
 
-默认数据目录位于用户主目录下的 `.agentlink/wechat`。
+默认数据目录位于用户主目录下的：
+
+```text
+~/.agentlink/wechat
+```
 
 持久化内容包括：
+
 - 账号凭证
 - 轮询游标
 - `context_token`
 - 调试模式状态
-- 白名单相关文件
+- 白名单文件
 
 设计目标：
+
 - 同一台机器上可恢复历史登录状态
 - 支持多账号并存
 - 不把敏感数据写入仓库
 
+与官方插件的差异：
+
+- 官方插件通常落在 `.openclaw` 宿主目录
+- 本仓库作为独立 SDK，使用自己的状态目录布局
+
 ---
 
-## 7. 错误处理策略
+## 8. 错误处理策略
 
-SDK 将错误分成若干类：
+SDK 将错误分为：
+
 - `AuthError`
 - `NetworkError`
 - `ProtocolError`
 - `MediaError`
 
 策略约定：
-- 长轮询超时视为正常空闲，不作为异常噪声上报
+
+- 长轮询超时视为正常空闲，不作为错误上报
 - 可恢复的网络错误允许重试
-- 会话过期时进入重新登录流程
+- 会话过期时触发重新登录流程
 - 出站消息默认不做盲目重试，避免重复发送
 
 ---
 
-## 8. 示例策略
+## 9. 示例策略
 
 当前仓库提供两个示例：
 
-### 8.1 `examples/echo-bot.ts`
+### 9.1 `examples/echo-bot.ts`
 
 用途：
+
 - 最小联调示例
 - 验证扫码登录、收消息、发回复这条基础链路
 
-### 8.2 `examples/openai-doc-agent.ts`
+### 9.2 `examples/openai-doc-agent.ts`
 
 用途：
+
 - 展示 AgentLink WeChat 与 AI Agent 的接入方式
 - 提供本地文档检索、多账号运行、配置文件管理等参考实现
 
 设计取向：
+
 - 优先可读性和学习价值
 - 优先稳定行为，不额外增加复杂兼容逻辑
 
 ---
 
-## 9. 开发路线图
+## 10. 开发路线图
 
 ### Phase 1: MVP
 
@@ -280,6 +358,7 @@ SDK 将错误分成若干类：
 - [x] AES-128-ECB 加解密
 - [x] 图片上传下载
 - [x] 文件上传下载
+- [x] 视频消息组包与发送对齐
 
 ### Phase 4: 高级功能
 
@@ -287,52 +366,40 @@ SDK 将错误分成若干类：
 - [x] 白名单配对
 - [x] 斜杠命令
 - [x] 调试模式
+- [ ] 更多官方插件兼容层（按需）
 
 ---
 
-## 10. 测试策略
+## 11. 测试策略
 
-测试分为两层：
-
-### 10.1 单元测试
+### 11.1 单元测试
 
 覆盖核心模块逻辑，包括：
+
 - 消息构建
 - 媒体加解密
 - 游标管理
 - 存储读写
 - 安全约束
+- 视频消息组包
+- 动态长轮询超时
 
-### 10.2 联调验证
+### 11.2 联调验证
 
-用于验证协议链路和真实微信侧行为，包括：
+用于验证真实链路行为，包括：
+
 - 扫码登录
 - 文本收发
 - 文件上传
 - 图片下载
+- 协议字段与官方公开实现的对齐情况
 
 ---
 
-## 11. 维护建议
+## 12. 维护建议
 
-- 文档、示例与实际代码结构保持一致
-- 新增协议字段时，优先更新协议文档再更新实现
-- 对外文档优先讲“如何使用”，内部实现细节留在源码和测试中
-- 敏感数据只保存在本地配置或数据目录
-
----
-
-## 12. 参考资料
-
-如遇到字段含义、边界情况或新增接口，可参考官方 npm 分发产物做兼容性校对：
-
-```bash
-npx -y @tencent-weixin/openclaw-weixin-cli@latest install
-```
-
-建议重点查看：
-- `src/api/api.ts`
-- `src/api/types.ts`
-- `src/messaging/send.ts`
-- `src/channel.ts`
-- `src/monitor.ts`
+- README、协议文档、设计文档和实际代码结构保持一致
+- 新增协议字段时，优先更新协议文档，再更新实现
+- 优先对齐官方公开插件中的协议术语和行为语义
+- 对工程结构、运行目录、示例组织等非协议层差异保持明确说明
+- 敏感数据只保存在本地配置或数据目录中

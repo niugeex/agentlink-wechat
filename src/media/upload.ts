@@ -6,7 +6,7 @@ import { MediaError } from '../errors.js';
 import type { ILinkHttpClient } from '../http/client.js';
 import { createMediaEncryptionMaterial, encryptAes128Ecb } from './crypto.js';
 import { getContentType, getUploadMediaType } from '../utils/mime.js';
-import { MessageItemType, type FileMessageItem, type GetUploadUrlResponse, type ImageMessageItem, type SendableMessageItem } from '../types/api.js';
+import { MessageItemType, UploadMediaType, type FileMessageItem, type GetUploadUrlResponse, type ImageMessageItem, type SendableMessageItem, type VideoMessageItem } from '../types/api.js';
 
 export interface UploadedMedia {
   downloadEncryptedQueryParam: string;
@@ -90,9 +90,26 @@ export function createFileMessageItem(uploaded: UploadedMedia): FileMessageItem 
   };
 }
 
+export function createVideoMessageItem(uploaded: UploadedMedia): VideoMessageItem {
+  return {
+    type: MessageItemType.VIDEO,
+    video_item: {
+      media: {
+        encrypt_query_param: uploaded.downloadEncryptedQueryParam,
+        aes_key: uploaded.aesKeyBase64,
+        encrypt_type: 1,
+      },
+      video_size: uploaded.ciphertextSize,
+    },
+  };
+}
+
 export function createMediaMessageItem(uploaded: UploadedMedia): SendableMessageItem {
-  if (uploaded.mediaType === 1) {
+  if (uploaded.mediaType == UploadMediaType.IMAGE) {
     return createImageMessageItem(uploaded);
+  }
+  if (uploaded.mediaType == UploadMediaType.VIDEO) {
+    return createVideoMessageItem(uploaded);
   }
   return createFileMessageItem(uploaded);
 }

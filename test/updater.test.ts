@@ -1,4 +1,5 @@
 ﻿import { describe, expect, it, vi } from 'vitest';
+import { DEFAULT_TIMEOUTS } from '../src/constants.js';
 import { AuthError, NetworkError } from '../src/errors.js';
 import { UpdatesPoller } from '../src/polling/updater.js';
 
@@ -60,6 +61,37 @@ describe('UpdatesPoller', () => {
 
     await poller.start();
     expect(onLogout).toHaveBeenCalledWith('session_expired');
+  });
+
+  it('uses server-provided long-poll timeout for the next request', async () => {
+    const timeouts: number[] = [];
+    let calls = 0;
+    const poller = new UpdatesPoller(
+      {
+        post: async (_path: string, _body: object, timeout?: number) => {
+          timeouts.push(timeout ?? -1);
+          calls += 1;
+          if (calls === 1) {
+            return { longpolling_timeout_ms: 12000, msgs: [] };
+          }
+          poller.stop();
+          return { msgs: [] };
+        },
+      } as never,
+      {
+        getCursor: async () => '',
+        saveCursor: async () => undefined,
+        onMessage: async () => undefined,
+        onLogout: async () => undefined,
+        onError: () => undefined,
+        getChannelVersion: () => '2.1.1',
+        sleep: async () => undefined,
+      },
+    );
+
+    await poller.start();
+
+    expect(timeouts).toEqual([DEFAULT_TIMEOUTS.updates, 12000]);
   });
 });
 

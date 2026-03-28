@@ -140,6 +140,7 @@ export interface GetUpdatesResponse {
   sync_buf?: string;
   get_updates_buf?: string;
   msgs?: RawMessage[];
+  longpolling_timeout_ms?: number;
 }
 
 export interface TextMessageItem {
@@ -167,7 +168,15 @@ export interface FileMessageItem {
   };
 }
 
-export type SendableMessageItem = TextMessageItem | ImageMessageItem | FileMessageItem;
+export interface VideoMessageItem {
+  type: MessageItemType.VIDEO;
+  video_item: {
+    media?: RawMediaDescriptor;
+    video_size?: number;
+  };
+}
+
+export type SendableMessageItem = TextMessageItem | ImageMessageItem | FileMessageItem | VideoMessageItem;
 
 export interface SendMessageRequest {
   msg: {

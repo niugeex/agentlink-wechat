@@ -1,4 +1,5 @@
-﻿import { AuthError, NetworkError } from '../errors.js';
+﻿import { DEFAULT_TIMEOUTS } from '../constants.js';
+import { AuthError, NetworkError } from '../errors.js';
 import type { ILinkHttpClient } from '../http/client.js';
 import type { GetUpdatesResponse, RawMessage } from '../types/api.js';
 
@@ -34,12 +35,18 @@ export class UpdatesPoller {
   }
 
   private async pollLoop(): Promise<void> {
+    let timeoutMs: number = DEFAULT_TIMEOUTS.updates;
+
     while (!this.aborted) {
       try {
         const response = await this.http.post<GetUpdatesResponse>('ilink/bot/getupdates', {
           get_updates_buf: await this.options.getCursor(),
           base_info: { channel_version: this.options.getChannelVersion() },
-        });
+        }, timeoutMs);
+
+        if (typeof response.longpolling_timeout_ms === 'number' && response.longpolling_timeout_ms > 0) {
+          timeoutMs = response.longpolling_timeout_ms;
+        }
 
         if (response.get_updates_buf !== undefined) {
           await this.options.saveCursor(response.get_updates_buf);

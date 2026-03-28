@@ -2,7 +2,7 @@
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
-import { createFileMessageItem, createImageMessageItem, uploadMediaFile } from '../src/media/upload.js';
+import { createFileMessageItem, createImageMessageItem, createMediaMessageItem, createVideoMessageItem, uploadMediaFile } from '../src/media/upload.js';
 import { UploadMediaType } from '../src/types/api.js';
 
 describe('uploadMediaFile', () => {
@@ -62,5 +62,27 @@ describe('uploadMediaFile', () => {
     const item = createFileMessageItem(uploaded);
     expect(item.file_item.file_name).toBe('notes.txt');
     expect(item.file_item.media?.encrypt_query_param).toBe('download-2');
+    expect(createMediaMessageItem(uploaded).type).toBe(4);
+  });
+
+  it('uploads videos and builds video payload', async () => {
+    const filePath = join(root, 'clip.mp4');
+    await writeFile(filePath, Buffer.from('hello video'));
+
+    const uploaded = await uploadMediaFile({
+      http: {
+        post: async () => ({ upload_full_url: 'https://upload.example.com/video' }),
+        upload: async () => new Response('', { status: 200, headers: { 'x-encrypted-param': 'download-3' } }),
+      } as never,
+      filePath,
+      toUserId: 'user@im.wechat',
+      channelVersion: '2.1.1',
+    });
+
+    expect(uploaded.mediaType).toBe(UploadMediaType.VIDEO);
+    const item = createVideoMessageItem(uploaded);
+    expect(item.video_item.media?.encrypt_query_param).toBe('download-3');
+    expect(item.video_item.video_size).toBe(uploaded.ciphertextSize);
+    expect(createMediaMessageItem(uploaded).type).toBe(5);
   });
 });
