@@ -55,8 +55,8 @@ describe('security checks', () => {
   });
 
   it('rejects download destinations that escape the data directory', () => {
-    expect(() => resolveDestination(root, '..\\..\\outside.bin')).toThrow('Destination escapes the configured data directory');
-    expect(() => resolveDestination(root, 'nested\\inside.bin')).not.toThrow();
+    expect(() => resolveDestination(root, '../../outside.bin')).toThrow('Destination escapes the configured data directory');
+    expect(() => resolveDestination(root, 'nested/inside.bin')).not.toThrow();
   });
 
   it('redacts sensitive log metadata by key and token pattern', () => {
