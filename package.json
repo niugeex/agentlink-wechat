@@ -29,6 +29,9 @@
     "scripts": {
         "build": "tsup src/index.ts --format esm,cjs --dts --clean",
         "test": "vitest run",
+        "demo:weather": "node examples/weather-bot.ts",
+        "demo:send-media": "node examples/send-media.ts",
+        "demo:multi-account": "node examples/multi-account-echo.ts",
         "demo:openai-agent": "node examples/openai-doc-agent.ts"
     },
     "dependencies": {

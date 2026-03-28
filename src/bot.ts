@@ -1,6 +1,7 @@
-﻿import { EventEmitter } from 'node:events';
+import { EventEmitter } from 'node:events';
 import { join } from 'node:path';
 import { DEFAULT_CDN_BASE_URL, DEFAULT_CHANNEL_VERSION } from './constants.js';
+import { AuthError } from './errors.js';
 import { QrCodeLogin } from './auth/qrcode.js';
 import { SessionState } from './auth/session.js';
 import { ILinkHttpClient } from './http/client.js';

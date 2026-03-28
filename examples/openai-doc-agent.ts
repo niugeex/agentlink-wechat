@@ -394,6 +394,17 @@ class MultiAccountDocAgentDemo {
     return accounts.length > 0 ? accounts.join(', ') : '(none)';
   }
 
+  private removeBotEntries(bot: AgentLinkWechat): string[] {
+    const removedKeys: string[] = [];
+    for (const [key, entry] of this.bots.entries()) {
+      if (entry.bot === bot) {
+        this.bots.delete(key);
+        removedKeys.push(key);
+      }
+    }
+    return removedKeys;
+  }
+
   private async stopAll(): Promise<void> {
     const bots = Array.from(this.bots.values()).map((entry) => entry.bot);
     for (const bot of bots) {
@@ -444,11 +455,9 @@ class MultiAccountDocAgentDemo {
     });
 
     bot.on('logout', (reason) => {
-      const key = bot.botId ?? fallbackKey;
+      const removedKeys = this.removeBotEntries(bot);
+      const key = bot.botId ?? removedKeys[0] ?? fallbackKey;
       console.log(`[${key}] logout: ${reason}`);
-      if (reason === 'manual_logout') {
-        this.bots.delete(key);
-      }
     });
 
     bot.on('message', async (message) => {

@@ -1,0 +1,12 @@
+AgentLink WeChat send-media 示例文件
+
+你可以直接在微信里发送以下命令来测试：
+- /send-image examples/assets/demo-card.png
+- /send-file examples/assets/demo-brief.txt
+- /send-video examples/assets/demo-video.mp4
+
+说明：
+- demo-card.png 用于图片回传测试
+- demo-brief.txt 用于普通文件回传测试
+- demo-video.mp4 用于视频回传测试
+- send-media 示例会优先复用本地已保存账号，没有账号时才触发扫码登录
