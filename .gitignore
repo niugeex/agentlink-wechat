@@ -1,0 +1,13 @@
+node_modules/
+dist/
+coverage/
+.DS_Store
+Thumbs.db
+*.log
+*.tmp
+*.tsbuildinfo
+.env
+.env.*
+.agentlink/
+.uniclawlink/
+examples/openai-doc-agent.config.json

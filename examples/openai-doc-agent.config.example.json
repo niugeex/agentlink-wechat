@@ -1,0 +1,6 @@
+{
+  "apiKey": "<your-openrouter-api-key>",
+  "baseURL": "https://openrouter.ai/api/v1",
+  "model": "xiaomi/mimo-v2-pro",
+  "api": "chat_completions"
+}
