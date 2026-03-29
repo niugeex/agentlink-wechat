@@ -1,8 +1,12 @@
-﻿import { platform } from 'node:os';
+﻿import { execFile } from 'node:child_process';
+import { platform } from 'node:os';
 import { stdin as input, stdout as output } from 'node:process';
 import { createInterface } from 'node:readline/promises';
+import { promisify } from 'node:util';
 
 import { AgentLinkWechat, Message, NetworkError } from '@agentlink/wechat';
+
+const execFileAsync = promisify(execFile);
 
 type ManagedBot = {
   key: string;
@@ -18,25 +22,20 @@ function normalizeQrUrl(inputUrl: string): string {
 }
 
 async function openExternal(url: string): Promise<void> {
-  if (platform() !== 'win32') {
+  const currentPlatform = platform();
+
+  if (currentPlatform === 'win32') {
+    const escaped = url.replace(/'/g, "''");
+    await execFileAsync('powershell.exe', ['-NoProfile', '-Command', `Start-Process -FilePath '${escaped}'`]);
     return;
   }
-  const escaped = url.replace(/'/g, "''");
-  await import('node:child_process').then(({ execFile }) =>
-    new Promise<void>((resolve, reject) => {
-      execFile(
-        'powershell.exe',
-        ['-NoProfile', '-Command', `Start-Process -FilePath '${escaped}'`],
-        (error) => {
-          if (error) {
-            reject(error);
-            return;
-          }
-          resolve();
-        },
-      );
-    }),
-  );
+
+  if (currentPlatform === 'darwin') {
+    await execFileAsync('open', [url]);
+    return;
+  }
+
+  await execFileAsync('xdg-open', [url]);
 }
 
 class MultiAccountEchoDemo {

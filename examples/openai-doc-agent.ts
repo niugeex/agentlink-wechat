@@ -10,7 +10,7 @@ import { Agent, run, setDefaultOpenAIClient, setOpenAIAPI, setTracingDisabled, t
 import OpenAI from 'openai';
 import { z } from 'zod';
 
-import { Message, NetworkError, AgentLinkWechat } from '@agentlink/wechat';
+import { NetworkError, AgentLinkWechat } from '@agentlink/wechat';
 
 const execFileAsync = promisify(execFile);
 
@@ -21,10 +21,6 @@ type DocRecord = {
 
 type ProviderConfig = z.infer<typeof ProviderConfigSchema>;
 
-type ManagedBot = {
-  key: string;
-  bot: AgentLinkWechat;
-};
 
 const REPO_ROOT = process.cwd();
 const CONFIG_PATH = resolve(REPO_ROOT, 'examples/openai-doc-agent.config.json');
@@ -284,272 +280,72 @@ function createAgent(model: string): Agent {
   });
 }
 
-class MultiAccountDocAgentDemo {
-  private readonly agent: Agent;
-  private readonly bots = new Map<string, ManagedBot>();
-  private loginInFlight: Promise<void> | null = null;
-
-  constructor(model: string) {
-    this.agent = createAgent(model);
-  }
-
-  async start(): Promise<void> {
-    await docsPromise;
-    const accounts = await new AgentLinkWechat().listAccounts();
-
-    for (const accountId of accounts) {
-      await this.startStoredAccount(accountId);
-    }
-
-    if (this.bots.size === 0) {
-      await this.enrollNewAccount('initial startup');
-      return;
-    }
-
-    console.log(`Loaded ${this.bots.size} account(s): ${this.describeAccountsInline()}`);
-  }
-
-  printWelcome(): void {
-    console.log('');
-    console.log('AgentLink WeChat Multi-Account Doc Agent');
-    console.log('');
-    console.log('Terminal commands:');
-    console.log('  help       Show this help');
-    console.log('  accounts   List online accounts');
-    console.log('  login-new  Start QR login for a new account');
-    console.log('  quit       Stop all bots and exit');
-    console.log('');
-    console.log('WeChat chat commands:');
-    console.log('  /accounts  List online accounts');
-    console.log('  /login-new Start QR login for a new account');
-    console.log('  /logout    Logout the current account');
-    console.log('');
-    console.log('Reply mode:');
-    console.log('  Simplicity-first. The demo sends one final reply after the model completes.');
-    console.log('');
-  }
-
-  async startTerminalConsole(): Promise<void> {
-    const rl = createInterface({ input, output });
-    this.printPrompt();
-
-    try {
-      for await (const line of rl) {
-        const command = line.trim().toLowerCase();
-
-        if (!command) {
-          this.printPrompt();
-          continue;
-        }
-
-        if (command === 'help') {
-          this.printWelcome();
-          this.printPrompt();
-          continue;
-        }
-
-        if (command === 'accounts') {
-          console.log(`Online accounts (${this.bots.size}): ${this.describeAccountsInline()}`);
-          this.printPrompt();
-          continue;
-        }
-
-        if (command === 'login-new') {
-          if (this.loginInFlight) {
-            console.log('A new account login is already in progress.');
-          } else {
-            this.loginInFlight = this.enrollNewAccount('requested from terminal')
-              .catch((error) => {
-                console.error('failed to enroll new account', error);
-              })
-              .finally(() => {
-                this.loginInFlight = null;
-                this.printPrompt();
-              });
-          }
-          continue;
-        }
-
-        if (command === 'quit' || command === 'exit') {
-          rl.close();
-          await this.stopAll();
-          process.exit(0);
-        }
-
-        console.log(`Unknown command: ${command}`);
-        console.log('Type `help` to see available terminal commands.');
-        this.printPrompt();
-      }
-    } finally {
-      rl.close();
-    }
-  }
-
-  private printPrompt(): void {
-    output.write('demo> ');
-  }
-
-  private describeAccountsInline(): string {
-    const accounts = Array.from(this.bots.keys());
-    return accounts.length > 0 ? accounts.join(', ') : '(none)';
-  }
-
-  private removeBotEntries(bot: AgentLinkWechat): string[] {
-    const removedKeys: string[] = [];
-    for (const [key, entry] of this.bots.entries()) {
-      if (entry.bot === bot) {
-        this.bots.delete(key);
-        removedKeys.push(key);
-      }
-    }
-    return removedKeys;
-  }
-
-  private async stopAll(): Promise<void> {
-    const bots = Array.from(this.bots.values()).map((entry) => entry.bot);
-    for (const bot of bots) {
-      bot.stop();
-    }
-    this.bots.clear();
-  }
-
-  private async startStoredAccount(accountId: string): Promise<void> {
-    if (this.bots.has(accountId)) {
-      return;
-    }
-
-    const bot = new AgentLinkWechat({ accountId });
-    this.attachBot(bot, accountId);
-
-    try {
-      await bot.start();
-      const key = bot.botId ?? accountId;
-      this.bots.set(key, { key, bot });
-      console.log(`Started stored account ${key}`);
-    } catch (error) {
-      console.error(`failed to start stored account ${accountId}`, error);
-    }
-  }
-
-  private attachBot(bot: AgentLinkWechat, fallbackKey: string): void {
-    bot.on('qrcode', (url) => {
-      const normalizedUrl = normalizeQrUrl(url);
-      console.log(`[${fallbackKey}] Scan this QR code URL to log in:`);
-      console.log(normalizedUrl);
-      void openExternal(normalizedUrl).catch((error) => {
-        console.error('failed to open QR code URL automatically', error);
-      });
-    });
-
-    bot.on('qrcode:scanned', () => {
-      console.log(`[${fallbackKey}] QR code scanned. Confirm login in WeChat.`);
-    });
-
-    bot.on('login', (credentials) => {
-      const key = credentials.botId;
-      this.bots.set(key, { key, bot });
-      if (key !== fallbackKey && this.bots.has(fallbackKey) && this.bots.get(fallbackKey)?.bot === bot) {
-        this.bots.delete(fallbackKey);
-      }
-      console.log(`Logged in as ${credentials.botId}`);
-    });
-
-    bot.on('logout', (reason) => {
-      const removedKeys = this.removeBotEntries(bot);
-      const key = bot.botId ?? removedKeys[0] ?? fallbackKey;
-      console.log(`[${key}] logout: ${reason}`);
-    });
-
-    bot.on('message', async (message) => {
-      await this.handleMessage(bot, message);
-    });
-
-    bot.on('error', (error) => {
-      const account = bot.botId ?? fallbackKey;
-      if (error instanceof NetworkError) {
-        if (error.isTimeout) {
-          return;
-        }
-        console.warn(`[${account}] network warning: ${error.message}`);
-        return;
-      }
-      console.error(`[${account}] bot error`, error);
-    });
-  }
-
-  private async handleMessage(bot: AgentLinkWechat, message: Message): Promise<void> {
-    const text = message.text.trim();
-    if (!text) {
-      await message.reply('Please send a text question so I can search the docs for you.');
-      return;
-    }
-
-    if (text === '/logout') {
-      await message.reply('Logging out this account. You will need to scan again next time.');
-      await bot.logout();
-      return;
-    }
-
-    if (text === '/accounts') {
-      await message.reply(`Online accounts (${this.bots.size}):\n${Array.from(this.bots.keys()).join('\n') || '(none)'}`);
-      return;
-    }
-
-    if (text === '/login-new') {
-      if (this.loginInFlight) {
-        await message.reply('A new account login is already in progress. Check the latest QR code window.');
-        return;
-      }
-      await message.reply('Starting a new account login flow. A QR code window will open shortly.');
-      this.loginInFlight = this.enrollNewAccount(`requested by ${message.userId}`)
-        .catch((error) => {
-          console.error('failed to enroll new account', error);
-        })
-        .finally(() => {
-          this.loginInFlight = null;
-          this.printPrompt();
-        });
-      return;
-    }
-
-    console.log(`[${bot.botId ?? 'unknown'}] [${message.timestamp.toISOString()}] ${message.userId}: ${message.text}`);
-
-    try {
-      const result = await run(this.agent, text);
-      const output = normalizeModelReply(String(result.finalOutput ?? ''));
-      await message.reply(output || 'I could not find a confident answer in the local docs yet.');
-    } catch (error) {
-      console.error('agent error', error);
-      await message.reply('The doc assistant hit an error. Check your provider config and try again.');
-    }
-  }
-
-  private async enrollNewAccount(reason: string): Promise<void> {
-    console.log(`Starting new account enrollment: ${reason}`);
-    const bot = new AgentLinkWechat();
-    const tempKey = `pending-${Date.now()}`;
-    this.attachBot(bot, tempKey);
-
-    await bot.login();
-    const credentials = await bot.waitForLogin();
+async function startBot(bot: AgentLinkWechat): Promise<void> {
+  const accounts = await bot.listAccounts();
+  if (accounts.length > 0) {
+    console.log(`检测到本地已保存账号，直接启动：${accounts[0]}`);
     await bot.start();
-
-    const key = credentials.botId;
-    this.bots.set(key, { key, bot });
-    this.bots.delete(tempKey);
-    console.log(`New account enrolled and started: ${key}`);
-    console.log(`Online accounts (${this.bots.size}): ${this.describeAccountsInline()}`);
+    return;
   }
+
+  await bot.login();
+  await bot.waitForLogin();
+  await bot.start();
 }
 
 async function main(): Promise<void> {
   const providerConfig = await loadProviderConfig();
   configureProvider(providerConfig);
 
-  const demo = new MultiAccountDocAgentDemo(providerConfig.model);
-  demo.printWelcome();
-  await demo.start();
-  void demo.startTerminalConsole();
+  const agent = createAgent(providerConfig.model);
+  const bot = new AgentLinkWechat();
+
+  bot.on('qrcode', (url) => {
+    const normalizedUrl = normalizeQrUrl(url);
+    console.log('请扫码登录:');
+    console.log(normalizedUrl);
+    void openExternal(normalizedUrl).catch((error) => {
+      console.error('自动打开二维码链接失败', error);
+    });
+  });
+
+  bot.on('qrcode:scanned', () => {
+    console.log('已扫码，请在微信内确认登录');
+  });
+
+  bot.on('login', (credentials) => {
+    console.log(`登录成功: ${credentials.botId}`);
+  });
+
+  bot.on('message', async (message) => {
+    const text = message.text.trim();
+    if (!text) {
+      await message.reply('请发送文字问题，我会在文档里帮你查找。');
+      return;
+    }
+
+    console.log(`[${message.timestamp.toISOString()}] ${message.userId}: ${message.text}`);
+
+    try {
+      const result = await run(agent, text);
+      const reply = normalizeModelReply(String(result.finalOutput ?? ''));
+      await message.reply(reply || '文档中暂时没有找到相关内容。');
+    } catch (error) {
+      console.error('agent error', error);
+      await message.reply('查询出错，请检查 provider 配置后重试。');
+    }
+  });
+
+  bot.on('error', (error) => {
+    if (error instanceof NetworkError) {
+      if (error.isTimeout) return;
+      console.warn('network warning', error.message);
+      return;
+    }
+    console.error('bot error', error);
+  });
+
+  await startBot(bot);
 }
 
 void main().catch((error) => {

@@ -11,3 +11,6 @@ Thumbs.db
 .agentlink/
 .uniclawlink/
 examples/openai-doc-agent.config.json
+.claude/settings.local.json
+.npmrc
+*.tgz
