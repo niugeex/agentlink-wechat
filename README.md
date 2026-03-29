@@ -153,7 +153,9 @@ npm run demo:multi-account
 ```ts
 import { AgentLinkWechat, NetworkError } from '@agentlink/wechat';
 
-const bot = new AgentLinkWechat();
+const bot = new AgentLinkWechat({
+  dataDir: './.agentlink-wechat',
+});
 
 bot.on('qrcode', (url) => console.log('请扫码登录:', url));
 bot.on('login', (credentials) => console.log('登录成功:', credentials.botId));
@@ -184,6 +186,29 @@ await bot.start();
 | 事件 `message` | 收到新消息，携带 `text`、`userId`、`timestamp` 和 `reply()` |
 | 事件 `qrcode` / `qrcode:scanned` | 二维码就绪 / 已扫码待确认 |
 | 事件 `login` / `logout` / `error` | 登录状态变化与错误 |
+
+## dataDir 与媒体下载
+
+`dataDir` 是应用传给 SDK 的运行时数据目录，用来保存会话、游标，以及下载下来的媒体文件。
+
+```ts
+const bot = new AgentLinkWechat({
+  dataDir: './.agentlink-wechat',
+});
+```
+
+`message.downloadMedia(destination)` 中的 `destination` 不是相对于 SDK 安装目录，也不是任意隐式目录；它表示“相对于 `dataDir` 的目标路径”。
+
+```ts
+bot.on('message', async (message) => {
+  if (!message.hasMedia) return;
+
+  const filePath = await message.downloadMedia('downloads/inbox.bin');
+  console.log(filePath); // <dataDir>/downloads/inbox.bin
+});
+```
+
+如果没有显式传入 `dataDir`，默认目录是用户主目录下的 `.agentlink/wechat`。为避免部署环境差异，生产场景建议应用显式设置 `dataDir`。
 
 ## 示例场景
 

@@ -1,6 +1,6 @@
 {
   "name": "@agentlink/wechat",
-  "version": "0.2.0",
+  "version": "0.2.1",
   "description": "AgentLink WeChat - WeChat iLink Bot SDK for AI Agents",
   "main": "./dist/index.cjs",
   "module": "./dist/index.js",

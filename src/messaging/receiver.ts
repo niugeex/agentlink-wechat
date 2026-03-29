@@ -72,6 +72,16 @@ export class Message {
     return this.runtime.createReplyStream(this, options);
   }
 
+  /**
+   * Downloads the first media item in the message into the bot's configured
+   * `dataDir`.
+   *
+   * `destination` is treated as an application-provided path relative to
+   * `dataDir`. For example, `downloads/image.jpg` is saved to
+   * `<dataDir>/downloads/image.jpg`. Paths that escape `dataDir` are rejected.
+   *
+   * Returns the final resolved file path.
+   */
   async downloadMedia(destination: string): Promise<string> {
     if (!this.runtime.downloadMedia) {
       throw new Error('downloadMedia is available in Phase 3');

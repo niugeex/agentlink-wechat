@@ -4,6 +4,15 @@ All notable changes to this project will be documented in this file.
 
 The format is based on Keep a Changelog and this project follows Semantic Versioning as a working convention.
 
+## [0.2.1] - 2026-03-29
+
+### Changed
+- Clarified that `dataDir` is application-owned and that `message.downloadMedia(destination)` resolves relative paths inside that directory.
+- Expanded the README examples to show explicit `dataDir` configuration for applications that want stable media storage behavior.
+
+### Fixed
+- Added test coverage for relative media download destinations resolved against the configured root directory.
+
 ## [0.2.0] - 2026-03-29
 
 ### Added

@@ -64,4 +64,27 @@ describe('downloadMessageMedia', () => {
 
     await expect(readFile(destination)).resolves.toEqual(plaintext);
   });
+
+  it('resolves relative destinations against rootDir', async () => {
+    const plaintext = Buffer.from('hello rooted media');
+    const relativeDestination = 'downloads/nested/image.bin';
+    const finalDestination = join(root, 'downloads', 'nested', 'image.bin');
+
+    await downloadMessageMedia({
+      http: {
+        download: async () => new Response(plaintext, { status: 200 }),
+      } as never,
+      item: {
+        type: MessageItemType.FILE,
+        file_item: {
+          media: { encrypt_query_param: 'download-param' },
+        },
+      },
+      destination: relativeDestination,
+      rootDir: root,
+      cdnBaseUrl: 'https://cdn.example.com/c2c',
+    });
+
+    await expect(readFile(finalDestination)).resolves.toEqual(plaintext);
+  });
 });
