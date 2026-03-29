@@ -1,4 +1,4 @@
-﻿import { execFile } from 'node:child_process';
+import { execFile } from 'node:child_process';
 import { platform } from 'node:os';
 import { stdin as input, stdout as output } from 'node:process';
 import { createInterface } from 'node:readline/promises';
@@ -141,6 +141,16 @@ class MultiAccountEchoDemo {
     return accounts.length > 0 ? accounts.join(', ') : '(none)';
   }
 
+  private renderWechatHelp(): string {
+    return [
+      '微信内命令：',
+      '/help 查看帮助',
+      '/accounts 查看当前在线账号',
+      '/login-new 触发新账号扫码登录',
+      '/logout 登出当前 bot 账号',
+    ].join('\n');
+  }
+
   private removeBotEntries(bot: AgentLinkWechat): string[] {
     const removedKeys: string[] = [];
     for (const [key, entry] of this.bots.entries()) {
@@ -227,6 +237,11 @@ class MultiAccountEchoDemo {
   private async handleMessage(bot: AgentLinkWechat, message: Message): Promise<void> {
     const text = message.text.trim();
     const account = bot.botId ?? 'unknown';
+
+    if (text === '/help') {
+      await message.reply(this.renderWechatHelp());
+      return;
+    }
 
     if (text === '/accounts') {
       await message.reply(`在线账号 (${this.bots.size}):\n${Array.from(this.bots.keys()).join('\n') || '(none)'}`);

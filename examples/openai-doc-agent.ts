@@ -264,6 +264,30 @@ const readDoc = tool({
   },
 });
 
+function renderHelp(): string {
+  return [
+    '文档助手示例命令：',
+    '/help',
+    '',
+    '你可以直接发送自然语言问题，例如：',
+    '这个项目怎么扫码登录？',
+    '支持哪些示例？',
+    '如何发送图片、文件和视频？',
+    'context_token 是做什么的？',
+  ].join('\n');
+}
+
+function printStartupGuide(): void {
+  console.log('');
+  console.log('文档问答 Agent 示例已启动。');
+  console.log('可以直接在微信里发送：');
+  console.log('  /help');
+  console.log('  这个项目怎么扫码登录？');
+  console.log('  支持哪些示例？');
+  console.log('  如何发送图片、文件和视频？');
+  console.log('');
+}
+
 function createAgent(model: string): Agent {
   return new Agent({
     name: 'AgentLink WeChat Doc Assistant',
@@ -319,8 +343,8 @@ async function main(): Promise<void> {
 
   bot.on('message', async (message) => {
     const text = message.text.trim();
-    if (!text) {
-      await message.reply('请发送文字问题，我会在文档里帮你查找。');
+    if (!text || text === '/help') {
+      await message.reply(renderHelp());
       return;
     }
 
