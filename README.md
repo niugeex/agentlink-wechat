@@ -189,7 +189,7 @@ await bot.start();
 
 ## dataDir 与媒体下载
 
-`dataDir` 是应用传给 SDK 的运行时数据目录，用来保存会话、游标，以及下载下来的媒体文件。
+`dataDir` 是应用传给 SDK 的运行时根目录。SDK 会在其下维护账号状态、白名单和其他本地数据；下载下来的媒体文件也会保存在这个根目录下。
 
 ```ts
 const bot = new AgentLinkWechat({
@@ -197,7 +197,7 @@ const bot = new AgentLinkWechat({
 });
 ```
 
-`message.downloadMedia(destination)` 中的 `destination` 不是相对于 SDK 安装目录，也不是任意隐式目录；它表示“相对于 `dataDir` 的目标路径”。
+`message.downloadMedia(destination)` 中的 `destination` 不是相对于 SDK 安装目录，也不是任意隐式目录；它表示“相对于 `dataDir` 根目录的目标路径”。
 
 ```ts
 bot.on('message', async (message) => {
@@ -208,7 +208,7 @@ bot.on('message', async (message) => {
 });
 ```
 
-如果没有显式传入 `dataDir`，默认目录是用户主目录下的 `.agentlink/wechat`。为避免部署环境差异，生产场景建议应用显式设置 `dataDir`。
+如果没有显式传入 `dataDir`，默认根目录是用户主目录下的 `.agentlink/wechat`。其中账号状态默认保存在 `<dataDir>/wechat/`，白名单文件默认保存在 `<dataDir>/credentials/`。为避免部署环境差异，生产场景建议应用显式设置 `dataDir`。
 
 ## 示例场景
 
@@ -357,6 +357,7 @@ const bot = new AgentLinkWechat({
 - Node.js 支持版本：`>=18`
 - 构建产物目录：`dist/`
 - 本地 demo 配置文件不会提交：`examples/openai-doc-agent.config.json`
-- 默认运行时数据目录位于用户主目录下的 `.agentlink/wechat`
+- 默认运行时根目录位于用户主目录下的 `.agentlink/wechat`
 
 如果后续要进一步公开发布或长期维护，建议持续关注官方 OpenClaw 微信插件公开文档中的协议变化、兼容性范围和术语更新。
+

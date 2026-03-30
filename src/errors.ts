@@ -9,6 +9,7 @@
 }
 
 export class AuthError extends ILinkError {}
+export class LoginCancelledError extends AuthError {}
 export class NetworkError extends ILinkError {
   readonly isTimeout: boolean;
 

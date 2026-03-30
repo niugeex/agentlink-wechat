@@ -1,7 +1,7 @@
-import { EventEmitter } from 'node:events';
+﻿import { EventEmitter } from 'node:events';
 import { join } from 'node:path';
 import { DEFAULT_CDN_BASE_URL, DEFAULT_CHANNEL_VERSION } from './constants.js';
-import { AuthError } from './errors.js';
+import { AuthError, LoginCancelledError } from './errors.js';
 import { QrCodeLogin } from './auth/qrcode.js';
 import { SessionState } from './auth/session.js';
 import { ILinkHttpClient } from './http/client.js';
@@ -40,6 +40,7 @@ export class AgentLinkWechat extends EventEmitter {
   private pendingLogin = createDeferred<Credentials>();
   private lastLoginResult: LoginResult | null = null;
   private restarting = false;
+  private loginAbortController: AbortController | null = null;
 
   constructor(options: BotOptions = {}) {
     super();
@@ -81,20 +82,45 @@ export class AgentLinkWechat extends EventEmitter {
   }
 
   async login(): Promise<LoginResult> {
-    const result = await this.loginFlow.createLogin();
+    this.cancelLogin();
+    this.loginAbortController = new AbortController();
+    this.pendingLogin = createDeferred<Credentials>();
+    const result = await this.loginFlow.createLogin(this.loginAbortController.signal);
     this.lastLoginResult = result;
     this.logger.info('QR code created', { qrcodeId: result.qrcodeId });
     return result;
   }
 
   async waitForLogin(): Promise<Credentials> {
-    const credentials = await this.loginFlow.waitForLogin(this.lastLoginResult ?? undefined);
-    await this.applyCredentials(credentials);
-    this.pendingLogin.resolve(credentials);
+    if (!this.loginAbortController) {
+      this.loginAbortController = new AbortController();
+    }
+
+    try {
+      const credentials = await this.loginFlow.waitForLogin(this.lastLoginResult ?? undefined, this.loginAbortController.signal);
+      await this.applyCredentials(credentials);
+      this.pendingLogin.resolve(credentials);
+      this.pendingLogin = createDeferred<Credentials>();
+      this.emit('login', credentials);
+      this.logger.info('Login completed', { botId: credentials.botId, userId: credentials.userId });
+      return credentials;
+    } finally {
+      this.loginAbortController = null;
+      this.lastLoginResult = null;
+    }
+  }
+
+  cancelLogin(): void {
+    if (!this.loginAbortController) {
+      return;
+    }
+
+    const controller = this.loginAbortController;
+    this.loginAbortController = null;
+    this.lastLoginResult = null;
+    controller.abort();
     this.pendingLogin = createDeferred<Credentials>();
-    this.emit('login', credentials);
-    this.logger.info('Login completed', { botId: credentials.botId, userId: credentials.userId });
-    return credentials;
+    this.logger.info('Login cancelled');
   }
 
   async start(): Promise<void> {
@@ -109,6 +135,7 @@ export class AgentLinkWechat extends EventEmitter {
   }
 
   stop(): void {
+    this.cancelLogin();
     this.poller?.stop();
     this.poller = null;
   }
@@ -357,4 +384,6 @@ export class AgentLinkWechat extends EventEmitter {
     throw new Error(`No account has an active context for ${toUserId}`);
   }
 }
+
+
 

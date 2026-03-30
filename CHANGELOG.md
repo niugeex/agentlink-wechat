@@ -4,6 +4,16 @@ All notable changes to this project will be documented in this file.
 
 The format is based on Keep a Changelog and this project follows Semantic Versioning as a working convention.
 
+## [0.2.2] - 2026-03-30
+
+### Added
+- Added `cancelLogin()` and `LoginCancelledError` so applications can actively stop an in-flight QR login attempt.
+- Added test coverage for login cancellation behavior in both the QR login flow and the high-level bot API.
+
+### Changed
+- Synchronized README and docs with the current `dataDir` runtime root semantics and storage layout.
+- Refined the SDK design document example list to match the runnable examples in the repository.
+
 ## [0.2.1] - 2026-03-29
 
 ### Changed
@@ -30,4 +40,3 @@ The format is based on Keep a Changelog and this project follows Semantic Versio
 - Initial public release of the AgentLink WeChat TypeScript SDK.
 - Added QR login, session persistence, long polling, text replies, media transfer, and multi-account support.
 - Added runnable demos covering echo replies and an OpenAI-powered local documentation assistant.
-

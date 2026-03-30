@@ -1,7 +1,7 @@
-# AgentLink WeChat SDK 设计文档
+﻿# AgentLink WeChat SDK 设计文档
 
 > 基于 [微信 iLink / OpenClaw WeChat Channel 协议调研文档](./wechat-ilink-protocol.md) 编写
-> 日期：2026-03-28
+> 日期：2026-03-30
 
 ---
 
@@ -86,6 +86,7 @@ bot.on('message', async (message) => {
 - `createReplyStream()`
 - `downloadMedia()`
 - `listAccounts()`
+- `cancelLogin()`
 - 主动出站消息发送
 
 ---
@@ -99,6 +100,9 @@ agentlink-wechat/
 │   └── wechat-sdk-design.md
 ├── examples/
 │   ├── echo-bot.ts
+│   ├── weather-bot.ts
+│   ├── send-media.ts
+│   ├── multi-account-echo.ts
 │   ├── openai-doc-agent.ts
 │   └── openai-doc-agent.config.example.json
 ├── src/
@@ -123,7 +127,7 @@ agentlink-wechat/
 
 - `src/` 存放 SDK 源码
 - `test/` 存放单元测试
-- `examples/` 提供最小联调、多账号运行与 AI Agent 示例
+- `examples/` 提供最小联调与 AI Agent 示例
 - `docs/` 提供协议说明与设计说明
 
 ---
@@ -144,6 +148,7 @@ agentlink-wechat/
 
 - `login()`
 - `waitForLogin()`
+- `cancelLogin()`
 - `start()`
 - `stop()`
 - `logout()`
@@ -198,6 +203,7 @@ agentlink-wechat/
 - 轮询扫码状态
 - 处理 IDC 重定向
 - 产出登录凭证
+- 支持主动取消当前登录流程
 
 ### 6.2 `http/`
 
@@ -267,19 +273,17 @@ agentlink-wechat/
 
 ## 7. 持久化设计
 
-默认数据目录位于用户主目录下的：
+默认运行时根目录位于用户主目录下的：
 
 ```text
 ~/.agentlink/wechat
 ```
 
-持久化内容包括：
+默认布局下：
 
-- 账号凭证
-- 轮询游标
-- `context_token`
-- 调试模式状态
-- 白名单文件
+- 账号状态位于 `<dataDir>/wechat/`
+- 白名单文件位于 `<dataDir>/credentials/`
+- 下载媒体时，相对路径也基于 `dataDir` 根目录解析
 
 设计目标：
 
@@ -290,7 +294,7 @@ agentlink-wechat/
 与官方插件的差异：
 
 - 官方插件通常落在 `.openclaw` 宿主目录
-- 本仓库作为独立 SDK，使用自己的状态目录布局
+- 本仓库作为独立 SDK，使用自己的运行时目录布局
 
 ---
 
@@ -299,6 +303,7 @@ agentlink-wechat/
 SDK 将错误分为：
 
 - `AuthError`
+- `LoginCancelledError`
 - `NetworkError`
 - `ProtocolError`
 - `MediaError`
@@ -308,13 +313,14 @@ SDK 将错误分为：
 - 长轮询超时视为正常空闲，不作为错误上报
 - 可恢复的网络错误允许重试
 - 会话过期时触发重新登录流程
+- `cancelLogin()` 用于主动中止扫码等待
 - 出站消息默认不做盲目重试，避免重复发送
 
 ---
 
 ## 9. 示例策略
 
-当前仓库提供三个示例：
+当前仓库提供多个示例：
 
 ### 9.1 `examples/echo-bot.ts`
 
@@ -323,7 +329,21 @@ SDK 将错误分为：
 - 最小联调示例
 - 验证扫码登录、收消息、发回复这条基础链路
 
-### 9.2 `examples/multi-account-echo.ts`
+### 9.2 `examples/weather-bot.ts`
+
+用途：
+
+- 演示如何在消息处理器中接入外部 HTTP 服务
+- 展示基于微信消息触发查询并返回结构化结果的方式
+
+### 9.3 `examples/send-media.ts`
+
+用途：
+
+- 演示图片、文件、视频的上传发送流程
+- 展示媒体消息与 AES 处理相关的实际接入方式
+
+### 9.4 `examples/multi-account-echo.ts`
 
 用途：
 
@@ -331,7 +351,7 @@ SDK 将错误分为：
 - 展示微信消息在多个 bot 账号上的并行接入方式
 - 展示 `/accounts`、`/login-new`、`/logout` 这类多账号基础控制命令
 
-### 9.3 `examples/openai-doc-agent.ts`
+### 9.5 `examples/openai-doc-agent.ts`
 
 用途：
 
@@ -391,6 +411,7 @@ SDK 将错误分为：
 - 安全约束
 - 视频消息组包
 - 动态长轮询超时
+- 登录取消行为
 
 ### 11.2 联调验证
 
@@ -411,3 +432,6 @@ SDK 将错误分为：
 - 优先对齐官方公开插件中的协议术语和行为语义
 - 对工程结构、运行目录、示例组织等非协议层差异保持明确说明
 - 敏感数据只保存在本地配置或数据目录中
+- 涉及 `dataDir`、存储路径和文件布局的调整，需要同步更新 README 与 docs
+
+

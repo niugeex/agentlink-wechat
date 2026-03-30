@@ -6,9 +6,9 @@ export interface BotOptions {
   /**
    * Application-owned runtime data directory.
    *
-   * Session state, cursors, allowlists, and media downloads are stored here.
+   * This is the runtime root directory. SDK-managed account state, allowlists, and media downloads are stored under it.
    * When `message.downloadMedia(destination)` receives a relative path, it is
-   * resolved against this directory. Defaults to `~/.agentlink/wechat`.
+   * resolved against this root directory. Defaults to `~/.agentlink/wechat`.
    */
   dataDir?: string;
   logLevel?: 'trace' | 'debug' | 'info' | 'warn' | 'error';
@@ -26,3 +26,4 @@ export interface StreamOptions {
   maxChunkSize?: number;
   showTyping?: boolean;
 }
+

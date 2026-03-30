@@ -1,5 +1,5 @@
 ﻿import { DEFAULT_BASE_URL, DEFAULT_TIMEOUTS } from '../constants.js';
-import { AuthError } from '../errors.js';
+import { AuthError, LoginCancelledError } from '../errors.js';
 import { ILinkHttpClient } from '../http/client.js';
 import type { Credentials, LoginResult, QrCodeResponse, QrCodeStatusResponse } from '../types/api.js';
 
@@ -22,8 +22,10 @@ export class QrCodeLogin {
     this.onQrcode = options.onQrcode;
   }
 
-  async createLogin(): Promise<LoginResult> {
+  async createLogin(signal?: AbortSignal): Promise<LoginResult> {
+    this.throwIfCancelled(signal);
     const response = await this.http.get<QrCodeResponse>('ilink/bot/get_bot_qrcode?bot_type=3');
+    this.throwIfCancelled(signal);
     const result = {
       qrcodeId: response.qrcode,
       qrcodeUrl: response.qrcode_img_content,
@@ -32,12 +34,14 @@ export class QrCodeLogin {
     return result;
   }
 
-  async waitForLogin(loginResult?: LoginResult): Promise<Credentials> {
-    let current = loginResult ?? (await this.createLogin());
+  async waitForLogin(loginResult?: LoginResult, signal?: AbortSignal): Promise<Credentials> {
+    this.throwIfCancelled(signal);
+    let current = loginResult ?? (await this.createLogin(signal));
     let refreshCount = 0;
 
     while (refreshCount <= this.maxRefreshes) {
-      const credentials = await this.pollUntilResolved(current.qrcodeId);
+      this.throwIfCancelled(signal);
+      const credentials = await this.pollUntilResolved(current.qrcodeId, signal);
       if (credentials) {
         return credentials;
       }
@@ -45,18 +49,20 @@ export class QrCodeLogin {
       if (refreshCount > this.maxRefreshes) {
         break;
       }
-      current = await this.createLogin();
+      current = await this.createLogin(signal);
     }
 
     throw new AuthError('QR code expired too many times');
   }
 
-  private async pollUntilResolved(qrcodeId: string): Promise<Credentials | null> {
+  private async pollUntilResolved(qrcodeId: string, signal?: AbortSignal): Promise<Credentials | null> {
     for (;;) {
+      this.throwIfCancelled(signal);
       const response = await this.http.get<QrCodeStatusResponse>(
         `ilink/bot/get_qrcode_status?qrcode=${encodeURIComponent(qrcodeId)}`,
         DEFAULT_TIMEOUTS.loginPoll,
       );
+      this.throwIfCancelled(signal);
 
       switch (response.status) {
         case 'wait':
@@ -92,5 +98,11 @@ export class QrCodeLogin {
       routeTag: response.route_tag,
       savedAt: Date.now(),
     };
+  }
+
+  private throwIfCancelled(signal?: AbortSignal): void {
+    if (signal?.aborted) {
+      throw new LoginCancelledError('Login cancelled');
+    }
   }
 }

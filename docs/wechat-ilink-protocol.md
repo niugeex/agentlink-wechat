@@ -416,7 +416,7 @@ IMAGE > VIDEO > FILE > VOICE
 
 官方 OpenClaw 插件默认使用 `.openclaw` 宿主目录。
 
-本仓库作为独立 SDK，默认使用：
+本仓库作为独立 SDK，默认使用如下运行时根目录：
 
 ```text
 ~/.agentlink/wechat
@@ -442,7 +442,7 @@ IMAGE > VIDEO > FILE > VOICE
 
 ---
 
-## 14. 本仓库默认目录结构
+## 14. 本仓库默认运行时目录结构
 
 ```text
 ~/.agentlink/
@@ -459,7 +459,7 @@ IMAGE > VIDEO > FILE > VOICE
 
 说明：
 
-- 这是本仓库 SDK 的本地状态目录
+- 这是本仓库 SDK 的默认运行时根目录及其内部布局
 - 不等同于 OpenClaw 插件在 `.openclaw` 下的宿主状态目录
 
 ---
@@ -478,3 +478,4 @@ IMAGE > VIDEO > FILE > VOICE
 | 动态轮询超时 | ✅ | 当前 SDK 已支持读取 `longpolling_timeout_ms` |
 
 **结论：当前文档覆盖的核心协议路径已经完成对齐和可用性验证，可用于构建基于 iLink Bot API 的独立 SDK 与工程接入。**
+

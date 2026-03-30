@@ -1,6 +1,7 @@
 ﻿import { describe, expect, it } from 'vitest';
 import { QrCodeLogin } from '../src/auth/qrcode.js';
 import { ILinkHttpClient } from '../src/http/client.js';
+import { LoginCancelledError } from '../src/errors.js';
 
 describe('QrCodeLogin', () => {
   it('handles wait -> scaned -> confirmed flow', async () => {
@@ -63,5 +64,19 @@ describe('QrCodeLogin', () => {
 
     expect(credentials.baseUrl).toBe('https://alt.weixin.qq.com');
     expect(seenUrls.at(-1)).toContain('alt.weixin.qq.com');
+  });
+
+  it('throws LoginCancelledError when aborted before waiting completes', async () => {
+    const http = new ILinkHttpClient({
+      fetchImpl: async () => new Response(JSON.stringify({ status: 'wait' }), { status: 200, headers: { 'content-type': 'application/json' } }),
+    });
+
+    const login = new QrCodeLogin(http);
+    const controller = new AbortController();
+    controller.abort();
+
+    await expect(
+      login.waitForLogin({ qrcodeId: 'qr1', qrcodeUrl: 'https://example.com/qr1' }, controller.signal),
+    ).rejects.toBeInstanceOf(LoginCancelledError);
   });
 });
